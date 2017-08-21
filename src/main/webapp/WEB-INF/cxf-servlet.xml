@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:jaxws="http://cxf.apache.org/jaxws"
+	xmlns:cxf="http://cxf.apache.org/core" xmlns:soap="http://cxf.apache.org/bindings/soap"
+	xsi:schemaLocation="http://cxf.apache.org/core http://cxf.apache.org/schemas/core.xsd http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://cxf.apache.org/bindings/soap http://cxf.apache.org/schemas/configuration/soap.xsd http://cxf.apache.org/jaxws http://cxf.apache.org/schemas/jaxws.xsd">
+
+	<jaxws:server id="pointsSvc" serviceClass="com.heinsd.ws.WS"
+		address="/around">
+		<jaxws:serviceBean>
+			<bean class="com.heinsd.ws.WSImpl" />
+		</jaxws:serviceBean>
+
+		<jaxws:inInterceptors>
+			<bean class="org.apache.cxf.ws.security.wss4j.WSS4JInInterceptor">
+				<constructor-arg>
+					<map>
+						<entry key="action" value="UsernameToken Encrypt Signature Timestamp" />
+						<entry key="passwordType" value="PasswordText" />
+						<entry key="passwordCallbackRef" value-ref="myPasswordCallback" />
+						<entry key="decryptionPropFile" value="etc/serviceKeystore.properties" />
+						<entry key="signaturePropFile" value="etc/serviceKeystore.properties" />
+					</map>
+				</constructor-arg>
+			</bean>
+		</jaxws:inInterceptors>
+		<jaxws:outInterceptors>
+			<bean class="org.apache.cxf.ws.security.wss4j.WSS4JOutInterceptor">
+				<constructor-arg>
+					<map>
+						<entry key="action" value="Timestamp Signature Encrypt" />
+						<entry key="passwordCallbackRef" value-ref="myPasswordCallback" />
+						<entry key="encryptionPropFile" value="etc/serviceKeystore.properties" />
+						<entry key="encryptionUser" value="myclientkey" />
+						<entry key="encryptionParts"
+							value="{Element}{http://www.w3.org/2000/09/xmldsig#}Signature;{Content}{http://schemas.xmlsoap.org/soap/envelope/}Body" />
+						<entry key="signatureUser" value="myservicekey" />
+						<entry key="signaturePropFile" value="etc/serviceKeystore.properties" />
+						<entry key="signatureParts"
+							value="{Element}{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd}Timestamp;{Element}{http://schemas.xmlsoap.org/soap/envelope/}Body" />
+						<entry key="timeToLive" value="30" />
+					</map>
+				</constructor-arg>
+			</bean>
+		</jaxws:outInterceptors>
+	</jaxws:server>
+
+	<bean id="MyUserTokenValidator" class="com.heinsd.interceptor.MyUserTokenValidator" />
+	<bean id="myPasswordCallback" class="com.heinsd.interceptor.PasswordCallbackHandler" />
+	
+
+	<bean id="abstractLoggingInterceptor" abstract="true">
+		<property name="prettyLogging" value="true" />
+	</bean>
+	<bean id="loggingInInterceptor" class="org.apache.cxf.interceptor.LoggingInInterceptor"
+		parent="abstractLoggingInterceptor" />
+	<bean id="loggingOutInterceptor" class="org.apache.cxf.interceptor.LoggingOutInterceptor"
+		parent="abstractLoggingInterceptor" />
+
+	<cxf:bus>
+
+		<cxf:properties>
+			<entry key="ws-security.validate.token" value="false" />
+			<!-- <entry key="ws-security.ut.no-callbacks" value="false" /> -->
+			<entry key="ws-security.ut.validator" value-ref="MyUserTokenValidator" />
+		</cxf:properties>
+
+		<cxf:inInterceptors>
+			<ref bean="loggingInInterceptor" />
+		</cxf:inInterceptors>
+		<cxf:outInterceptors>
+			<ref bean="loggingOutInterceptor" />
+		</cxf:outInterceptors>
+		<cxf:outFaultInterceptors>
+			<ref bean="loggingOutInterceptor" />
+		</cxf:outFaultInterceptors>
+		<cxf:inFaultInterceptors>
+			<ref bean="loggingInInterceptor" />
+		</cxf:inFaultInterceptors>
+	</cxf:bus>
+</beans>
